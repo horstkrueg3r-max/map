@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>STEK Europe Map</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css"/>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+
+  <style>
+    #map { height: 90vh; }
+    .controls { padding: 10px; }
+  </style>
+</head>
+
+<body>
+
+<div class="controls">
+  <label><input type="checkbox" id="distributors" checked> Distributors</label>
+  <label><input type="checkbox" id="installers" checked> Installers</label>
+</div>
+
+<div id="map"></div>
+
+<script>
+const SHEET_URL = "YOUR_CSV_URL_HERE";
+
+const map = L.map('map').setView([50, 10], 4);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
+  .addTo(map);
+
+const markers = L.markerClusterGroup();
+
+let allData = [];
+
+function parseCSV(csv) {
+  const lines = csv.split('\n');
+  const headers = lines[0].split(',');
+
+  return lines.slice(1).map(line => {
+    const cols = line.split(',');
+    let obj = {};
+    headers.forEach((h, i) => obj[h.trim()] = cols[i]);
+    return obj;
+  });
+}
+
+function render() {
+  markers.clearLayers();
+
+  const showDist = document.getElementById("distributors").checked;
+  const showInst = document.getElementById("installers").checked;
+
+  allData.forEach(row => {
+    if (!row.lat || !row.lon) return;
+
+    if (row.type === "distributor" && !showDist) return;
+    if (row.type === "installer" && !showInst) return;
+
+    const marker = L.marker([parseFloat(row.lat), parseFloat(row.lon)]);
+
+    marker.bindPopup(`
+      <b>${row.name}</b><br>
+      ${row.city}, ${row.country}<br>
+      <a href="${row.website}" target="_blank">Website</a>
+    `);
+
+    markers.addLayer(marker);
+  });
+
+  map.addLayer(markers);
+}
+
+fetch(SHEET_URL)
+  .then(res => res.text())
+  .then(csv => {
+    allData = parseCSV(csv);
+    render();
+  });
+
+document.querySelectorAll("input").forEach(el => {
+  el.addEventListener("change", render);
+});
+</script>
+
+</body>
+</html>
